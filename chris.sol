@@ -6,32 +6,42 @@ pragma solidity >=0.8.0;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
 contract TicketBookingSystem {
-    Show[] private shows;
+    mapping(string => Show) public shows;
+    string[] showTitles;
     
-    function getShowByTitle (string memory _title, string memory _date) public returns (Show) {
-        uint showIndex = getShowIndex(_title,_date);
-        return shows[showIndex];
-    }
-    
-    function getShowIndex(string memory _title, string memory _date) public returns(uint) {
-        for (uint i = 0; i < shows.length; i++) {
-            if (keccak256(bytes(shows[i].title)) == keccak256(bytes(_title)) && shows[i].dates[_date]) {
-                return i;
-            }
+    function buy (string memory _title, string memory _date, uint _numb, uint _row) public view returns (bool) {
+        Show show = shows[_title];
+        if (show.canBuy(_date,_numb,_row)) {
+            return true;
         }
-        return -1;
+        return false;
     }
     
-    function buy (string memory _title, string memory _date, uint _numb, uint _row) public {
-        if (getShowByTitle(_title).canBuy(_date,_numb,_row)) {
-            
-        }
+    function addShow(string memory _title, uint _availableSeats) public {
+        shows[_title] = new Show(_title, _availableSeats);
+        showTitles.push(_title);
     }
+    
+    function addShowDate(string memory _title, string memory _date) public {
+        Show show = shows[_title];
+        show.addDate(_date);
+    }
+    
+    function getAllShowTitles () public view returns(string[] memory) {
+        return showTitles;
+    }
+    
+    function getShowDates (string memory _title) public view returns(string[] memory) {
+        Show show = shows[_title];
+        return show.getDates();
+    }
+    
 }
 
 contract Show {
     string public title;
     mapping(string=>Seat[]) public dates;
+    string[] dateIndex;
     uint private availableSeats;
     address public admin;
     
@@ -54,23 +64,29 @@ contract Show {
     }
     
     function addDate (string memory _date) public {
-        
         for (uint i = 0; i < availableSeats; i ++){
             dates[_date].push(Seat(title, _date, 10, i, 1, "url:seat-link", false));
         }
+        dateIndex.push(_date);
     }
     
-    function canBuy (string memory _date, uint _numb, uint _row) external returns(bool){
+    function canBuy (string memory _date, uint _numb, uint _row) public view returns(bool) {
         Seat[] memory seats = dates[_date];
         for (uint i = 0; i < availableSeats; i++) {
             if (seats[i].numb == _numb && seats[i].row == _row && seats[i].booked == false) {
                 return true;
-                
             }
         }
         return false;
     }
     
+    function getTitle ()public view returns(string memory) {
+        return title;
+    }
+    
+    function getDates () public view returns(string[] memory) {
+        return dateIndex;
+    }
 }
 
 
