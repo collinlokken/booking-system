@@ -6,8 +6,19 @@ pragma solidity >=0.8.0;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
+struct Seat {
+    bytes32 id;
+    string title;
+    string date;
+    uint price;
+    uint numb;
+    uint row;
+    string seatView;
+    bool booked;
+}
+
 contract TicketBookingSystem {
-    mapping(string => Show) public shows;
+    mapping(string => Show) shows;
     string[] showTitles;
     Ticket ticket;
     
@@ -22,7 +33,11 @@ contract TicketBookingSystem {
         Show show = shows[_title];
         if (show.canBuy(_date,_numb,_row)) {
             bytes32 seatId = show.hash(_title,_date,_numb,_row);
+            uint seatPrice = show.getSeatPrice(_date,seatId);
+            require(msg.value == seatPrice, "YOU DIDN'T PAY EXACT AMOUNT");
             ticket.mint(msg.sender, _tokenIds.current(), seatId, show);
+            _tokenIds.increment();
+            show.bookSeat(_date,seatId);
             return true;
         }
         return false;
@@ -47,26 +62,18 @@ contract TicketBookingSystem {
         return show.getDates();
     }
     
+    function getBalance () public view returns (uint) {
+        return address(this).balance;
+    }
+    
 }
 
 contract Show {
     string public title;
-    mapping(string=>mapping(bytes32=>Seat)) public dates; // {"2.des" -> {xyz:1, abc:2}},"3.des" -> ...}
+    mapping(string=>mapping(bytes32=>Seat)) public dates;  // {"2.des" -> {xyz:1, abc:2}},"3.des" -> ...}
     string[] dateIndex;
     uint private availableSeats;
     address public admin;
-    
-    struct Seat {
-        bytes32 id;
-        string title;
-        string date;
-        uint price;
-        uint numb;
-        uint row;
-        string seatView;
-        bool booked;
-    }
-
     
     constructor (string memory _title, uint _availableSeats) public {
         title = _title;
@@ -111,6 +118,15 @@ contract Show {
         uint _row
     ) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(_title, _date, _numb, _row));
+    }
+    
+    function getSeatPrice(string memory _date, bytes32 _seatId) public view returns (uint) {
+        return dates[_date][_seatId].price;
+    }
+    
+    function bookSeat(string memory _date, bytes32 _seatId) public {
+        Seat memory seat = dates[_date][_seatId];
+        seat.booked = true;
     }
 }
 
