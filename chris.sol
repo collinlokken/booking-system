@@ -21,26 +21,27 @@ contract TicketBookingSystem {
     mapping(string => Show) shows;
     string[] showTitles;
     Ticket ticket;
+    address admin;
     
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
     
     constructor () public {
         ticket = new Ticket();
+        admin = msg.sender;
     }
     
-    function buySeat (string memory _title, string memory _date, uint _numb, uint _row) public payable returns (bool) {
+    function buySeat (string memory _title, string memory _date, uint _numb, uint _row) public payable returns (uint) {
         Show show = shows[_title];
-        if (show.canBuy(_date,_numb,_row)) {
-            bytes32 seatId = show.hash(_title,_date,_numb,_row);
-            uint seatPrice = show.getSeatPrice(seatId);
-            require(msg.value == seatPrice, "YOU DIDN'T PAY EXACT AMOUNT");
-            ticket.mint(msg.sender, _tokenIds.current(), seatId, show);
-            _tokenIds.increment();
-            show.bookSeat(seatId);
-            return true;
-        }
-        return false;
+        bytes32 seatId = show.hash(_title,_date,_numb,_row);
+        uint seatPrice = show.getSeatPrice(seatId);
+        uint tokenId = _tokenIds.current();
+        require(msg.value == seatPrice && show.canBuy(_date,_numb,_row), "YOU DIDN'T PAY EXACT AMOUNT");
+        
+        ticket.mint(msg.sender, _tokenIds.current(), seatId, show);
+        show.bookSeat(seatId);
+        _tokenIds.increment();
+        return tokenId;
     }
     
     function addShow(string memory _title, uint _availableSeats) public {
@@ -64,6 +65,11 @@ contract TicketBookingSystem {
     
     function getBalance () public view returns (uint) {
         return address(this).balance;
+    }
+    
+    function verify (uint tokenId, address tryhard) public view returns (bool){
+        require (ticket.ownerOf(tokenId) == tryhard, "INPUT ADDRESS WAS NOT TOKEN OWNER");
+        return true;
     }
     
 }
@@ -139,6 +145,7 @@ contract Poster is ERC721 {
 
 contract Ticket is ERC721 {
     mapping(bytes32=>Show) tickets; // seat id --> show
+    
     constructor () ERC721 ("Ticket", "TKT") {}
     
     function mint(address _to, uint _ticketId, bytes32 _seatId, Show _show) public {
