@@ -33,11 +33,11 @@ contract TicketBookingSystem {
         Show show = shows[_title];
         if (show.canBuy(_date,_numb,_row)) {
             bytes32 seatId = show.hash(_title,_date,_numb,_row);
-            uint seatPrice = show.getSeatPrice(_date,seatId);
+            uint seatPrice = show.getSeatPrice(seatId);
             require(msg.value == seatPrice, "YOU DIDN'T PAY EXACT AMOUNT");
             ticket.mint(msg.sender, _tokenIds.current(), seatId, show);
             _tokenIds.increment();
-            show.bookSeat(_date,seatId);
+            show.bookSeat(seatId);
             return true;
         }
         return false;
@@ -70,7 +70,7 @@ contract TicketBookingSystem {
 
 contract Show {
     string public title;
-    mapping(string=>mapping(bytes32=>Seat)) public dates;  // {"2.des" -> {xyz:1, abc:2}},"3.des" -> ...}
+    mapping(bytes32=>Seat) public seats;  // {xyz:1, abc:2}
     string[] dateIndex;
     uint private availableSeats;
     address public admin;
@@ -89,14 +89,14 @@ contract Show {
             uint _row = 1;
             bytes32 id = hash(title,_date,_numb,_row);
             
-            dates[_date][id] = Seat(id, title, _date, _price, _numb, _row, "url:seat-link", false);
+            seats[id] = Seat(id, title, _date, _price, _numb, _row, "url:seat-link", false);
         }
         dateIndex.push(_date);
     }
     
     function canBuy (string memory _date, uint _numb, uint _row) public view returns(bool) {
         bytes32 seatId = hash(title,_date,_numb,_row);
-        Seat memory seat = dates[_date][seatId];
+        Seat memory seat = seats[seatId];
         if (seat.booked == false) {
             return true;
         }
@@ -120,12 +120,12 @@ contract Show {
         return keccak256(abi.encodePacked(_title, _date, _numb, _row));
     }
     
-    function getSeatPrice(string memory _date, bytes32 _seatId) public view returns (uint) {
-        return dates[_date][_seatId].price;
+    function getSeatPrice(bytes32 _seatId) public view returns (uint) {
+        return seats[_seatId].price;
     }
     
-    function bookSeat(string memory _date, bytes32 _seatId) public {
-        Seat memory seat = dates[_date][_seatId];
+    function bookSeat(bytes32 _seatId) public view {
+        Seat memory seat = seats[_seatId];
         seat.booked = true;
     }
 }
