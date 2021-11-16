@@ -31,18 +31,6 @@ contract TicketBookingSystem {
         admin = msg.sender;
     }
     
-    function cancelShow(string memory _title) public {
-        require(msg.sender == admin, "YOU ARE NOT THE OWNER OF THE SHOW");
-        Show show = shows[_title];
-        for (uint i = 0; i < show.getTicketsSold(); i ++){
-            uint tokenId = show.getTokenIds()[i];
-            address payable holder = show.getHolder(tokenId);
-            ticket.burn(tokenId);
-            holder.transfer(10);
-        }
-        
-    }
-    
     function buySeat (string memory _title, string memory _date, uint _numb, uint _row) public payable returns (uint) {
         Show show = shows[_title];
         bytes32 seatId = show.hash(_title,_date,_numb,_row);
@@ -82,6 +70,19 @@ contract TicketBookingSystem {
     function verify (uint tokenId, address tryhard) public view returns (bool){
         require (ticket.ownerOf(tokenId) == tryhard, "INPUT ADDRESS WAS NOT TOKEN OWNER");
         return true;
+    }
+    
+    function refund(string memory _title, uint _tokenId) public {
+        require(msg.sender == admin, "YOU ARE NOT THE OWNER OF THE SHOW");
+        Show show = shows[_title];
+        address payable holder = show.getHolder(_tokenId);
+        ticket.burn(_tokenId);
+        holder.transfer(10);
+    }
+    
+    function getShowTokenIds(string memory _title) public view returns (uint[] memory) {
+        Show show = shows[_title];
+        return show.getTokenIds();
     }
     
 }
