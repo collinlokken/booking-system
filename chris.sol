@@ -31,15 +31,27 @@ contract TicketBookingSystem {
         admin = msg.sender;
     }
     
+    function cancelShow(string memory _title) public {
+        require(msg.sender == admin, "YOU ARE NOT THE OWNER OF THE SHOW");
+        Show show = shows[_title];
+        for (uint i = 0; i < show.getTicketsSold(); i ++){
+            uint tokenId = show.getTokenIds()[i];
+            address payable holder = show.getHolder(tokenId);
+            ticket.burn(tokenId);
+            holder.transfer(10);
+        }
+        
+    }
+    
     function buySeat (string memory _title, string memory _date, uint _numb, uint _row) public payable returns (uint) {
         Show show = shows[_title];
         bytes32 seatId = show.hash(_title,_date,_numb,_row);
         uint seatPrice = show.getSeatPrice(seatId);
         uint tokenId = _tokenIds.current();
         require(msg.value == seatPrice && show.canBuy(_date,_numb,_row), "YOU DIDN'T PAY EXACT AMOUNT");
-        
         ticket.mint(msg.sender, _tokenIds.current(), seatId, show);
-        show.bookSeat(seatId);
+        show.bookSeat(seatId,tokenId,payable(msg.sender));
+        
         _tokenIds.increment();
         return tokenId;
     }
@@ -80,12 +92,15 @@ contract Show {
     string[] dateIndex;
     uint private availableSeats;
     address public admin;
+    mapping(uint=>address payable) holders;
+    uint ticketsSold;
+    uint[] tokenIds;
+    
     
     constructor (string memory _title, uint _availableSeats) public {
         title = _title;
         availableSeats = _availableSeats;
         admin = msg.sender;
-
     }
     
     function addDate (string memory _date) public {
@@ -98,6 +113,10 @@ contract Show {
             seats[id] = Seat(id, title, _date, _price, _numb, _row, "url:seat-link", false);
         }
         dateIndex.push(_date);
+    }
+    
+    function addTokenIDtoSeat(uint _tokenID) public view{
+        
     }
     
     function canBuy (string memory _date, uint _numb, uint _row) public view returns(bool) {
@@ -130,10 +149,26 @@ contract Show {
         return seats[_seatId].price;
     }
     
-    function bookSeat(bytes32 _seatId) public view {
+    function bookSeat(bytes32 _seatId, uint _tokenId, address payable _buyer) public {
         Seat memory seat = seats[_seatId];
         seat.booked = true;
+        holders[_tokenId] = _buyer;
+        ticketsSold ++;
+        tokenIds.push(_tokenId);
     }
+    
+    function getTicketsSold () public view returns (uint) {
+        return ticketsSold;
+    }
+    
+    function getTokenIds () public view returns (uint[] memory) {
+        return tokenIds;
+    }
+    
+    function getHolder(uint _tokenId) public view returns (address payable) {
+        return holders[_tokenId];
+    }
+    
 }
 
 
@@ -148,9 +183,12 @@ contract Ticket is ERC721 {
     
     constructor () ERC721 ("Ticket", "TKT") {}
     
-    function mint(address _to, uint _ticketId, bytes32 _seatId, Show _show) public {
-        _safeMint(_to,_ticketId);
+    function mint(address _to, uint _tokenId, bytes32 _seatId, Show _show) public {
+        _safeMint(_to,_tokenId);
         tickets[_seatId] = _show;
     }
+    
+    function burn(uint _tokenId) public {
+        _burn(_tokenId);
+    }
 }
-
