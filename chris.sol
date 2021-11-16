@@ -85,6 +85,16 @@ contract TicketBookingSystem {
         return show.getTokenIds();
     }
     
+    // f.eks fra brage til chris.
+    // TODO: brage må approve chris
+    // chris kjører trade og overfører til seg selv MEN må også sende med value = price
+    function tradeTicket (address payable _from, uint _tokenId) public payable{
+        uint price = 10;
+        require(msg.value == price, "YOU DID NOT PAY EXACT AMOUNT");
+        ticket.safeTransferFrom(_from, msg.sender, _tokenId);
+        _from.transfer(price);
+    }
+    
 }
 
 contract Show {
@@ -94,7 +104,6 @@ contract Show {
     uint private availableSeats;
     address public admin;
     mapping(uint=>address payable) holders;
-    uint ticketsSold;
     uint[] tokenIds;
     
     
@@ -154,12 +163,7 @@ contract Show {
         Seat memory seat = seats[_seatId];
         seat.booked = true;
         holders[_tokenId] = _buyer;
-        ticketsSold ++;
         tokenIds.push(_tokenId);
-    }
-    
-    function getTicketsSold () public view returns (uint) {
-        return ticketsSold;
     }
     
     function getTokenIds () public view returns (uint[] memory) {
