@@ -61,14 +61,19 @@ contract TicketBookingSystem is ERC721{
     }
 
     function validate(uint _tokenId) public {
+        require(verify(tickets.ownerOf(tokenId), msg.sender), "The owner of the ticket is invalid.");
         require(
-
-            tickets.ownerOf(tokenId) == msg.sender,
-            "The owner of the ticket is invalid."
+            block.timestamp <= seats[seatId].timestamp,
+            "The ticket has expired"
+        );
+        require(
+            block.timestamp >= seats[tokenId].timestamp - validationTimeframe,
+            "The validation period hasn't started."
         );
         require();
 
     }
+
 
     function addShow(string memory _title, uint _availableSeats) public {
         shows[_title] = new Show(_title, _availableSeats);
