@@ -17,17 +17,18 @@ struct Seat {
     bool booked;
 }
 
-contract TicketBookingSystem {
+contract TicketBookingSystem is ERC721{
     mapping(string => Show) shows;
     string[] showTitles;
-    Ticket ticket;
+    //Ticket ticket;
     address admin;
+    mapping(bytes32=>Show) tickets; // seat id --> show
     
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
     
-    constructor () public {
-        ticket = new Ticket();
+    constructor () ERC721 ("Ticket", "TKT") public {
+        //ticket = new Ticket();
         admin = msg.sender;
     }
     
@@ -37,11 +38,21 @@ contract TicketBookingSystem {
         uint seatPrice = show.getSeatPrice(seatId);
         uint tokenId = _tokenIds.current();
         require(msg.value == seatPrice && show.canBuy(_date,_numb,_row), "YOU DIDN'T PAY EXACT AMOUNT");
-        ticket.mint(msg.sender, _tokenIds.current(), seatId, show);
+        mint(msg.sender, _tokenIds.current(), seatId, show);
         show.bookSeat(seatId,tokenId,payable(msg.sender));
         
         _tokenIds.increment();
         return tokenId;
+    }
+    
+    
+    function mint(address _to, uint _tokenId, bytes32 _seatId, Show _show) public {
+        _safeMint(_to,_tokenId);
+        tickets[_seatId] = _show;
+    }
+    
+    function burn(uint _tokenId) public {
+        _burn(_tokenId);
     }
     
     function addShow(string memory _title, uint _availableSeats) public {
@@ -68,7 +79,7 @@ contract TicketBookingSystem {
     }
     
     function verify (uint tokenId, address tryhard) public view returns (bool){
-        require (ticket.ownerOf(tokenId) == tryhard, "INPUT ADDRESS WAS NOT TOKEN OWNER");
+        require (ownerOf(tokenId) == tryhard, "INPUT ADDRESS WAS NOT TOKEN OWNER");
         return true;
     }
     
@@ -76,7 +87,7 @@ contract TicketBookingSystem {
         require(msg.sender == admin, "YOU ARE NOT THE OWNER OF THE SHOW");
         Show show = shows[_title];
         address payable holder = show.getHolder(_tokenId);
-        ticket.burn(_tokenId);
+        burn(_tokenId);
         holder.transfer(10);
     }
     
@@ -88,11 +99,26 @@ contract TicketBookingSystem {
     // f.eks fra brage til chris.
     // TODO: brage må approve chris
     // chris kjører trade og overfører til seg selv MEN må også sende med value = price
+    
+    //må gi tillatelse til chris slik at han kan kjøre safeTransferFrom
+    //Bruker approve funksjonen
+    function AmIApproved(uint _tokenID) public view returns(address){
+        //approve(_to, _tokenID);
+        return (ownerOf(_tokenID));
+    }
+    
+    
+    function approveTrade(address _to, uint tokenId) public payable {
+        require(ownerOf(tokenId) == msg.sender);
+        approve(_to, tokenId);
+    }
+    
+    
     function tradeTicket (address payable _from, uint _tokenId) public payable{
-        uint price = 10;
-        require(msg.value == price, "YOU DID NOT PAY EXACT AMOUNT");
-        ticket.safeTransferFrom(_from, msg.sender, _tokenId);
-        _from.transfer(price);
+       uint price = 10;
+       require(msg.value == price, "YOU DID NOT PAY EXACT AMOUNT");
+       safeTransferFrom(_from, msg.sender, _tokenId);
+       _from.transfer(price);
     }
     
 }
@@ -105,7 +131,7 @@ contract Show {
     address public admin;
     mapping(uint=>address payable) holders;
     uint[] tokenIds;
-    
+    //test
     
     constructor (string memory _title, uint _availableSeats) public {
         title = _title;
@@ -180,20 +206,5 @@ contract Show {
 contract Poster is ERC721 {
     constructor () ERC721 ("Poster", "PST") {
         
-    }
-}
-
-contract Ticket is ERC721 {
-    mapping(bytes32=>Show) tickets; // seat id --> show
-    
-    constructor () ERC721 ("Ticket", "TKT") {}
-    
-    function mint(address _to, uint _tokenId, bytes32 _seatId, Show _show) public {
-        _safeMint(_to,_tokenId);
-        tickets[_seatId] = _show;
-    }
-    
-    function burn(uint _tokenId) public {
-        _burn(_tokenId);
     }
 }
