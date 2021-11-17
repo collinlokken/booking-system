@@ -136,6 +136,14 @@ contract TicketBookingSystem is ERC721{
        _from.transfer(price);
     }
 
+    function tradeTicket(uint _my_tokenId, uint _your_tokenId) public {
+        address myaddress = ownerOf(_my_tokenId);
+        address youraddress = ownerOf(_your_tokenId);
+        require(_isApprovedOrOwner(myaddress, _your_tokenId));
+        safeTransferFrom(myaddress, youraddress, _my_tokenId);
+        safeTransferFrom(youraddress, myaddress, _your_tokenId);
+    }
+
 }
 
 contract Show {
