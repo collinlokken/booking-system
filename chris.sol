@@ -10,6 +10,7 @@ struct Seat {
     bytes32 id;
     string title;
     string date;
+    uint timestamp;
     uint price;
     uint numb;
     uint row;
@@ -19,9 +20,12 @@ struct Seat {
 
 contract TicketBookingSystem is ERC721{
     mapping(string => Show) shows;
+    mapping(uint=> bytes32) token_to_seat; 
+    mapping(uint=> Show) token_to_show;
     string[] showTitles;
     address admin;
     mapping(bytes32=>Show) tickets; // seat id --> show
+    Poster poster;
 
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
@@ -29,6 +33,7 @@ contract TicketBookingSystem is ERC721{
     constructor () ERC721 ("Ticket", "TKT") public {
         //ticket = new Ticket();
         admin = msg.sender;
+        poster = new Poster();
     }
 
     modifier showOwner(){
@@ -45,7 +50,8 @@ contract TicketBookingSystem is ERC721{
         require(msg.value == seatPrice && show.canBuy(_date,_numb,_row), "YOU DIDN'T PAY EXACT AMOUNT");
         mint(msg.sender, _tokenIds.current(), seatId, show);
         show.bookSeat(seatId,tokenId,payable(msg.sender));
-
+        token_to_seat[tokenId] = seatId;
+        token_to_show[tokenId] = show;
         _tokenIds.increment();
         return tokenId;
     }
@@ -61,16 +67,20 @@ contract TicketBookingSystem is ERC721{
     }
 
     function validate(uint _tokenId) public {
-        require(verify(tickets.ownerOf(tokenId), msg.sender), "The owner of the ticket is invalid.");
+        require(ownerOf(_tokenId)==msg.sender, "The owner of the ticket is invalid.");
+        bytes32 seatId = token_to_seat[_tokenId];
+        Show show = token_to_show[_tokenId];
+        uint timestamp = show.getTimeStamp(seatId);
         require(
-            block.timestamp <= seats[seatId].timestamp,
+            block.timestamp <= timestamp,
             "The ticket has expired"
         );
         require(
-            block.timestamp >= seats[tokenId].timestamp - validationTimeframe,
+            block.timestamp >= timestamp - 2 hours,
             "The validation period hasn't started."
         );
-        require();
+        _burn(_tokenId);
+        poster.releasePoster(msg.sender);
 
     }
 
@@ -80,9 +90,9 @@ contract TicketBookingSystem is ERC721{
         showTitles.push(_title);
     }
 
-    function addShowDate(string memory _title, string memory _date) public {
+    function addShowDate(string memory _title, string memory _date, uint timestamp) public {
         Show show = shows[_title];
-        show.addDate(_date);
+        show.addDate(_date, timestamp);
     }
 
     function getAllShowTitles () public view returns(string[] memory) {
@@ -98,9 +108,8 @@ contract TicketBookingSystem is ERC721{
         return address(this).balance;
     }
 
-    function verify (uint tokenId, address tryhard) public view returns (bool){
-        require (ownerOf(tokenId) == tryhard, "INPUT ADDRESS WAS NOT TOKEN OWNER");
-        return true;
+    function verify (uint tokenId) public view returns (address){
+        return ownerOf(tokenId);
     }
 
     function refund(string memory _title, uint _tokenId) public {
@@ -167,20 +176,27 @@ contract Show {
         admin = msg.sender;
     }
 
-    function addDate (string memory _date) public {
+    function addDate (string memory _date, uint timestamp) public {
         for (uint i = 0; i < availableSeats; i ++){
             uint _price = 10;
             uint _numb = i;
             uint _row = 1;
             bytes32 id = hash(title,_date,_numb,_row);
+            
 
-            seats[id] = Seat(id, title, _date, _price, _numb, _row, "url:seat-link", false);
+            seats[id] = Seat(id, title, _date, timestamp, _price, _numb, _row, "url:seat-link", false);
         }
         dateIndex.push(_date);
     }
 
-    function addTokenIDtoSeat(uint _tokenID) public view{
-
+    function setTimeStamp(uint _timestamp, bytes32 _seatId) public view{
+        Seat memory seat = seats[_seatId];
+        seat.timestamp = _timestamp;
+    }    
+    
+    function getTimeStamp(bytes32 _seatId) public view returns(uint){
+        Seat memory seat = seats[_seatId];
+        return seat.timestamp;
     }
 
     function canBuy (string memory _date, uint _numb, uint _row) public view returns(bool) {
@@ -238,16 +254,18 @@ contract Poster is ERC721 {
 
     }
 
-    modifier posterMinter(){
-        require(msg.sender == admin);
-        _;
-    }
+    //modifier posterMinter(){
+    //    require(msg.sender == admin);
+    //    _;
+    //}
 
-    function releasePoster (address _to, uint _tokenIds) public posterMinter returns(uint)
+    function releasePoster (address _to) public returns(uint)
     {
         tokenIds.increment();
         uint newPosterID = tokenIds.current();
         _safeMint(_to, newPosterID);
         return newPosterID;
     }
+    
+    
 }
