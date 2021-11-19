@@ -6,7 +6,7 @@ pragma solidity >=0.8.0;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
-struct Seat {
+struct Seat {  // this is a data struct that keeps information about seats
     bytes32 id;
     string title;
     string date;
@@ -52,7 +52,7 @@ contract TicketBookingSystem is ERC721{
         _safeMint(_to,_tokenId);
     }
 
-    function validate(uint _tokenId) public {
+    function validate(uint _tokenId) public returns(uint) {
         require(ownerOf(_tokenId)==msg.sender, "The owner of the ticket is invalid.");
         bytes32 seatId = token_to_seat[_tokenId];
         Show show = token_to_show[_tokenId];
@@ -66,7 +66,7 @@ contract TicketBookingSystem is ERC721{
             "The validation period hasn't started."
         );
         _burn(_tokenId);
-        poster.releasePoster(msg.sender);
+        return poster.releasePoster(msg.sender);
 
     }
 
@@ -125,7 +125,7 @@ contract TicketBookingSystem is ERC721{
     }
 
 
-    function tradeTicket (address payable _from, uint _tokenId) public payable{
+    function buyTicket (address payable _from, uint _tokenId) public payable{
        uint price = 10;
        require(msg.value == price, "YOU DID NOT PAY EXACT AMOUNT");
        safeTransferFrom(_from, msg.sender, _tokenId);
