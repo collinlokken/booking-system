@@ -127,7 +127,7 @@ contract TicketBookingSystem is ERC721{
         holder.transfer(10);
         bytes32 seat_id = token_to_seat[_tokenId];
         show.unbookSeat(seat_id);
-        // show.destruct(address(this));
+        // show.destruct(address(this)); // This line should remove the show contract from the block chain, but we did not have time to implement this feature.
     }
 
     function getShowTokenIds(string memory _title) public view returns (uint[] memory) {
